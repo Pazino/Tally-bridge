@@ -5,11 +5,16 @@ color 0b
 
 cd /d "%~dp0"
 
+:: Set Inno Setup compiler path
+set "ISCC_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+
 :: If an argument was passed, jump straight to the action
 if /i "%~1"=="desktop" goto :action_desktop
 if /i "%~1"=="run" goto :action_desktop
 if /i "%~1"=="dev" goto :action_dev
 if /i "%~1"=="build" goto :action_build
+if /i "%~1"=="installer" goto :action_installer
+if /i "%~1"=="setup" goto :action_installer
 if /i "%~1"=="release" goto :action_release
 if /i "%~1"=="push" goto :action_push
 if /i "%~1"=="deps" goto :action_deps
@@ -22,21 +27,23 @@ echo ====================================================================
 echo.
 echo   [1] Launch Desktop App (PyWebView GUI)
 echo   [2] Start Dev Mode (Vite HMR + FastAPI Server)
-echo   [3] Build Standalone Executable (PyInstaller)
-echo   [4] Package and Publish GitHub Release (ZIP + Version Bump)
-echo   [5] Sync / Push to GitHub Repository
-echo   [6] Install / Update Dependencies (npm and pip)
+echo   [3] Build Desktop Files (PyInstaller)
+echo   [4] Build Windows Setup Installer EXE (Inno Setup)
+echo   [5] Package and Publish GitHub Release (Setup EXE + Tag Push)
+echo   [6] Sync / Push to GitHub Repository
+echo   [7] Install / Update Dependencies (npm and pip)
 echo   [0] Exit
 echo.
 echo ====================================================================
-set /p CHOICE="Select an option [0-6]: "
+set /p CHOICE="Select an option [0-7]: "
 
 if "%CHOICE%"=="1" goto :action_desktop
 if "%CHOICE%"=="2" goto :action_dev
 if "%CHOICE%"=="3" goto :action_build
-if "%CHOICE%"=="4" goto :action_release
-if "%CHOICE%"=="5" goto :action_push
-if "%CHOICE%"=="6" goto :action_deps
+if "%CHOICE%"=="4" goto :action_installer
+if "%CHOICE%"=="5" goto :action_release
+if "%CHOICE%"=="6" goto :action_push
+if "%CHOICE%"=="7" goto :action_deps
 if "%CHOICE%"=="0" exit /b 0
 
 echo.
@@ -91,11 +98,11 @@ goto :menu
 
 
 :: ====================================================================
-:: [3] BUILD STANDALONE EXECUTABLE
+:: [3] BUILD DESKTOP APPLICATION (PYINSTALLER)
 :: ====================================================================
 :action_build
 cls
-title Building Tally Bridge Desktop EXE
+title Building Tally Bridge Desktop Application
 color 0a
 echo ====================================================================
 echo   STEP 1: BUILDING REACT PRODUCTION BUNDLE
@@ -113,7 +120,7 @@ cd ..
 
 echo.
 echo ====================================================================
-echo   STEP 2: COMPILING STANDALONE DESKTOP EXECUTABLE WITH PYINSTALLER
+echo   STEP 2: COMPILING STANDALONE DESKTOP APPLICATION WITH PYINSTALLER
 echo ====================================================================
 echo.
 pyinstaller --noconfirm --onedir --windowed ^
@@ -149,7 +156,7 @@ copy /y "app_icon.png" "dist\TallyBridge\app_icon.png" >nul
 
 echo.
 echo ====================================================================
-echo [OK] Build completed! Standalone EXE is in: dist\TallyBridge\TallyBridge.exe
+echo [OK] Build completed! Files are in: dist\TallyBridge\
 echo ====================================================================
 if "%~1"=="" pause
 if "%~1"=="" goto :menu
@@ -157,7 +164,50 @@ exit /b 0
 
 
 :: ====================================================================
-:: [4] PACKAGE AND PUBLISH GITHUB RELEASE
+:: [4] BUILD WINDOWS SETUP INSTALLER EXE (INNO SETUP)
+:: ====================================================================
+:action_installer
+cls
+title Building Windows Setup Installer EXE
+color 0a
+echo ====================================================================
+echo   BUILDING STANDALONE WINDOWS SETUP INSTALLER (INNO SETUP)
+echo ====================================================================
+echo.
+
+if not exist "dist\TallyBridge\TallyBridge.exe" (
+    echo [*] Compiled application not found. Running build first...
+    call :action_build "batch"
+)
+
+if not exist "%ISCC_PATH%" (
+    echo [X] Inno Setup compiler not found at: %ISCC_PATH%
+    echo Please install Inno Setup 6 to compile the installer.
+    pause
+    goto :menu
+)
+
+echo [*] Compiling Inno Setup script installer.iss...
+"%ISCC_PATH%" "installer.iss"
+
+if %errorlevel% neq 0 (
+    echo [X] Inno Setup compilation failed!
+    pause
+    goto :menu
+)
+
+echo.
+echo ====================================================================
+echo [OK] Standalone Windows Setup Installer created successfully!
+echo Location: dist_installer\
+echo ====================================================================
+if "%~1"=="" pause
+if "%~1"=="" goto :menu
+exit /b 0
+
+
+:: ====================================================================
+:: [5] PACKAGE AND PUBLISH GITHUB RELEASE
 :: ====================================================================
 :action_release
 cls
@@ -181,29 +231,26 @@ if "%NEW_VERSION%"=="" (
 if "%NEW_VERSION:~0,1%"=="v" set NEW_VERSION=%NEW_VERSION:~1%
 
 echo.
-echo [*] Synchronizing version v%NEW_VERSION% in backend.py and config.json...
+echo [*] Synchronizing version v%NEW_VERSION% across backend, config, and installer...
 python -c "import re; c=open('backend.py','r',encoding='utf-8').read(); c=re.sub(r'APP_VERSION = \".*?\"', f'APP_VERSION = \"'%NEW_VERSION%'\"', c, count=1); open('backend.py','w',encoding='utf-8').write(c)"
 python -c "import json; d=json.load(open('config.json', 'r', encoding='utf-8')); d['app_version']='%NEW_VERSION%'; json.dump(d, open('config.json', 'w', encoding='utf-8'), indent=2)"
+python -c "import re; c=open('installer.iss','r',encoding='utf-8').read(); c=re.sub(r'#define MyAppVersion \".*?\"', f'#define MyAppVersion \"'%NEW_VERSION%'\"', c, count=1); open('installer.iss','w',encoding='utf-8').write(c)"
 
 echo [OK] Version updated to v%NEW_VERSION%!
 echo.
 
-echo [*] Compiling production build...
+echo [*] Compiling production build and standalone setup installer...
 call :action_build "batch"
+call :action_installer "batch"
 
-echo.
-echo ====================================================================
-echo   CREATING RELEASE ZIP ARCHIVE FOR GITHUB ASSETS
-echo ====================================================================
-echo.
+set SETUP_EXE=dist_installer\TallyBridge-Setup-v%NEW_VERSION%.exe
 
-set ZIP_NAME=TallyBridge-v%NEW_VERSION%.zip
+if not exist "%SETUP_EXE%" (
+    echo [X] Could not find generated installer: %SETUP_EXE%
+    pause
+    goto :menu
+)
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path 'dist\TallyBridge\*' -DestinationPath '%ZIP_NAME%' -Force"
-
-echo.
-echo [OK] Release asset created successfully: %ZIP_NAME%
-echo.
 echo.
 echo ====================================================================
 echo   AUTOMATED GIT SYNC AND RELEASE TAGGING
@@ -229,11 +276,11 @@ echo.
 echo [*] Opening GitHub Releases page in your browser...
 start https://github.com/Pazino/Tally-Bridge/releases/new?tag=v%NEW_VERSION%
 
-echo [*] Opening release ZIP in File Explorer...
-explorer /select,"%ZIP_NAME%"
+echo [*] Opening Setup Installer in File Explorer...
+explorer /select,"%SETUP_EXE%"
 
 echo.
-echo Final step: Just drag and drop '%ZIP_NAME%' into the GitHub Releases
+echo Final step: Just drag and drop '%SETUP_EXE%' into the GitHub Releases
 echo page and click 'Publish release'!
 echo.
 pause
@@ -241,7 +288,7 @@ goto :menu
 
 
 :: ====================================================================
-:: [5] SYNC / PUSH TO GITHUB
+:: [6] SYNC / PUSH TO GITHUB
 :: ====================================================================
 :action_push
 cls
@@ -273,7 +320,7 @@ goto :menu
 
 
 :: ====================================================================
-:: [6] INSTALL / UPDATE DEPENDENCIES
+:: [7] INSTALL / UPDATE DEPENDENCIES
 :: ====================================================================
 :action_deps
 cls
