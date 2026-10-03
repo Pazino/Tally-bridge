@@ -29,7 +29,7 @@ from tally_rbm_module import (
 )
 
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.2"
 GITHUB_REPO = "Pazino/Tally-Bridge" # Configured default repository for distribution
 
 if getattr(sys, 'frozen', False):
@@ -1678,8 +1678,8 @@ def _download_worker(download_url: str, target_zip: str, target_ver: str):
                             else:
                                 update_state["progress"] = 50
 
-        # Validate downloaded ZIP archive
-        if not zipfile.is_zipfile(target_zip):
+        # Validate downloaded package
+        if target_zip.lower().endswith(".zip") and not zipfile.is_zipfile(target_zip):
             raise Exception("Downloaded file is not a valid ZIP package.")
 
         with update_lock:
@@ -1768,19 +1768,23 @@ if exist "{target_dir}\\config.json" (
     echo [✓] Configuration backed up.
 )
 
-echo [3/5] Extracting updated files into staging area...
-set STAGE_DIR={update_dir}\\staging
-if exist "%STAGE_DIR%" rd /s /q "%STAGE_DIR%"
-mkdir "%STAGE_DIR%"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath '{zip_path}' -DestinationPath '%STAGE_DIR%' -Force"
-
-echo [*] Applying updated binaries to application folder...
-if exist "%STAGE_DIR%\\{exe_name}" (
-    xcopy /s /e /y /q "%STAGE_DIR%\\*" "{target_dir}\\" >nul
-) else if exist "%STAGE_DIR%\\TallyBridge\\{exe_name}" (
-    xcopy /s /e /y /q "%STAGE_DIR%\\TallyBridge\\*" "{target_dir}\\" >nul
+echo [3/5] Applying updated application files...
+if /i "{os.path.splitext(zip_path)[1]}"==".exe" (
+    echo [*] Replacing standalone executable...
+    copy /y "{zip_path}" "{target_dir}\\{exe_name}" >nul
 ) else (
-    xcopy /s /e /y /q "%STAGE_DIR%\\*" "{target_dir}\\" >nul
+    set STAGE_DIR={update_dir}\\staging
+    if exist "%STAGE_DIR%" rd /s /q "%STAGE_DIR%"
+    mkdir "%STAGE_DIR%"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath '{zip_path}' -DestinationPath '%STAGE_DIR%' -Force"
+    if exist "%STAGE_DIR%\\{exe_name}" (
+        xcopy /s /e /y /q "%STAGE_DIR%\\*" "{target_dir}\\" >nul
+    ) else if exist "%STAGE_DIR%\\TallyBridge\\{exe_name}" (
+        xcopy /s /e /y /q "%STAGE_DIR%\\TallyBridge\\*" "{target_dir}\\" >nul
+    ) else (
+        xcopy /s /e /y /q "%STAGE_DIR%\\*" "{target_dir}\\" >nul
+    )
+    rd /s /q "%STAGE_DIR%" >nul 2>&1
 )
 
 echo [4/5] Restoring user configuration (config.json)...

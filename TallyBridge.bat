@@ -118,11 +118,10 @@ echo.
 set "TARGET_VER="
 set /p "TARGET_VER=Enter Release Version (e.g. 1.0.2) [Press Enter to keep !CURRENT_VER!]: "
 if "!TARGET_VER!"=="" set "TARGET_VER=!CURRENT_VER!"
-if "!TARGET_VER!"=="" set "TARGET_VER=1.0.0"
 
-:: Safely strip leading 'v'
-if "!TARGET_VER:~0,1!"=="v" set "TARGET_VER=!TARGET_VER:~1!"
-if "!TARGET_VER:~0,1!"=="V" set "TARGET_VER=!TARGET_VER:~1!"
+:: Trim spaces and strip leading 'v' or 'V' safely
+for /f "delims=" %%v in ('python -c "v=r'''!TARGET_VER!'''.strip().lstrip('vV').strip(); print(v if v else '!CURRENT_VER!')"') do set "TARGET_VER=%%v"
+if "!TARGET_VER!"=="" set "TARGET_VER=1.0.0"
 
 echo.
 echo [*] Release Version selected: v!TARGET_VER!
@@ -141,13 +140,7 @@ echo ====================================================================
 echo.
 cd frontend
 call npm.cmd run build
-if errorlevel 1 (
-    echo.
-    echo [X] Frontend build failed!
-    cd ..
-    pause
-    goto :menu
-)
+if errorlevel 1 goto :frontend_failed
 cd ..
 
 echo.
@@ -172,12 +165,7 @@ call pyinstaller --noconfirm --onedir --windowed ^
   --hidden-import "PIL" ^
   desktop_app.py
 
-if errorlevel 1 (
-    echo.
-    echo [X] PyInstaller compilation failed!
-    pause
-    goto :menu
-)
+if errorlevel 1 goto :pyinstaller_failed
 
 copy /y "config.json" "dist\TallyBridge\config.json" >nul
 copy /y "app_icon.ico" "dist\TallyBridge\app_icon.ico" >nul
@@ -188,43 +176,29 @@ echo ====================================================================
 echo   STEP 3/3: COMPILING WINDOWS SETUP INSTALLER (INNO SETUP)
 echo ====================================================================
 echo.
-if not exist "!ISCC_PATH!" (
-    echo [X] Inno Setup compiler not found at: "!ISCC_PATH!"
-    pause
-    goto :menu
-)
+if not exist "!ISCC_PATH!" goto :inno_not_found
 
 set "SETUP_EXE=dist_installer\TallyBridge-Setup-v!TARGET_VER!.exe"
 if exist "!SETUP_EXE!" del /f /q "!SETUP_EXE!" >nul 2>&1
 
 echo [*] Running Inno Setup compiler for version v!TARGET_VER!...
 "!ISCC_PATH!" /DMyAppVersion=!TARGET_VER! "installer.iss"
+if not errorlevel 1 goto :inno_done
 
-if errorlevel 1 (
-    echo.
-    echo [*] Retrying compiler (waiting 2s for file lock release)...
-    timeout /t 2 /nobreak >nul
-    if exist "!SETUP_EXE!" del /f /q "!SETUP_EXE!" >nul 2>&1
-    "!ISCC_PATH!" /DMyAppVersion=!TARGET_VER! "installer.iss"
-)
+echo.
+echo [*] Retrying compiler - waiting 2 seconds for file lock release...
+timeout /t 2 /nobreak >nul
+if exist "!SETUP_EXE!" del /f /q "!SETUP_EXE!" >nul 2>&1
+"!ISCC_PATH!" /DMyAppVersion=!TARGET_VER! "installer.iss"
+if errorlevel 1 goto :inno_failed
 
-if errorlevel 1 (
-    echo.
-    echo [X] Inno Setup compilation failed!
-    pause
-    goto :menu
-)
-
-if not exist "!SETUP_EXE!" (
-    echo.
-    echo [X] Could not find generated installer: !SETUP_EXE!
-    pause
-    goto :menu
-)
+:inno_done
+if not exist "!SETUP_EXE!" goto :inno_missing
 
 echo.
 echo ====================================================================
-echo [OK] STANDALONE INSTALLER CREATED: !SETUP_EXE!
+echo [OK] STANDALONE INSTALLER CREATED SUCCESSFULLY!
+echo File: !SETUP_EXE!
 echo ====================================================================
 echo.
 
@@ -233,33 +207,66 @@ echo   GIT SYNC AND RELEASE TAGGING
 echo ====================================================================
 echo [*] Staging all files and committing release v!TARGET_VER!...
 git add -A
-git commit -m "Release v!TARGET_VER!"
+git commit -m "Release v!TARGET_VER!" 2>nul || echo [*] Working tree clean, continuing...
 
 echo [*] Pushing main branch to GitHub...
-git push origin main
+git push origin main || echo [!] Warning: git push origin main encountered an issue.
 
 echo [*] Setting Git release tag v!TARGET_VER!...
 git tag -fa "v!TARGET_VER!" -m "Release v!TARGET_VER!" >nul 2>&1
-git push -f origin "v!TARGET_VER!"
+git push -f origin "v!TARGET_VER!" || echo [!] Warning: git push tag encountered an issue.
 
 echo.
 echo ====================================================================
 echo [OK] Code and tag v!TARGET_VER! pushed to GitHub!
 echo ====================================================================
 echo.
-echo [*] Launching GitHub Releases page in browser...
+echo [*] Launching GitHub Releases page in default browser...
 start "" "https://github.com/Pazino/Tally-bridge/releases/new?tag=v!TARGET_VER!"
 
 echo [*] Highlighting setup installer in File Explorer...
-explorer /select,"!SETUP_EXE!"
+start "" explorer.exe /select,"%CD%\!SETUP_EXE!"
 
 echo.
 echo ====================================================================
-echo   SUCCESS! NEXT STEP:
+echo   RELEASE PACKAGED SUCCESSFULLY!
 echo ====================================================================
-echo Just drag and drop '!SETUP_EXE!' into the GitHub Releases
-echo browser page that was just opened, and click 'Publish release'!
+echo 1. The GitHub Releases page was opened in your browser.
+echo 2. File Explorer was opened with '!SETUP_EXE!' selected.
+echo 3. Drag and drop the installer into the browser and click 'Publish release'!
+echo ====================================================================
 echo.
+pause
+goto :menu
+
+:frontend_failed
+echo.
+echo [X] Frontend build failed!
+cd ..
+pause
+goto :menu
+
+:pyinstaller_failed
+echo.
+echo [X] PyInstaller compilation failed!
+pause
+goto :menu
+
+:inno_not_found
+echo.
+echo [X] Inno Setup compiler not found at: "!ISCC_PATH!"
+pause
+goto :menu
+
+:inno_failed
+echo.
+echo [X] Inno Setup compilation failed!
+pause
+goto :menu
+
+:inno_missing
+echo.
+echo [X] Could not find generated installer: !SETUP_EXE!
 pause
 goto :menu
 

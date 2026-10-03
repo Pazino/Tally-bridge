@@ -1,6 +1,6 @@
 #define MyAppName "Tally Bridge"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.0"
+  #define MyAppVersion "1.0.2"
 #endif
 #define MyAppPublisher "Pazino"
 #define MyAppURL "https://github.com/Pazino/Tally-Bridge"
