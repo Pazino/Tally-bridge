@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-sidebar: #ffffff;
+    --border-color: #e2e8f0;
+    --text-heading: #006EB2;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+  }
+
+  .dark {
+    --bg-main: #090d13;
+    --bg-card: #111827;
+    --bg-sidebar: #0d121c;
+    --border-color: #1f2937;
+    --text-heading: #38BDF8;
+    --text-primary: #f0f6fc;
+    --text-secondary: #94a3b8;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+/* ── PAZINO DESIGN SYSTEM UTILITIES ────────────────────────────────────────── */
+
+/* Official Pazino Blue for Headers & Section Titles (#006EB2 in light mode, #38BDF8 in dark mode) */
+.pazino-title {
+  color: #006EB2 !important;
+}
+.dark .pazino-title {
+  color: #38BDF8 !important;
+}
+
+/* Primary Action Buttons: linear-gradient(135deg, #005A9E 0%, #006EB2 50%, #0284C7 100%) */
+.btn-primary-pazino {
+  background: linear-gradient(135deg, #005A9E 0%, #006EB2 50%, #0284C7 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 14px rgba(0, 110, 178, 0.35) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.btn-primary-pazino:hover:not(:disabled) {
+  background: linear-gradient(135deg, #004d88 0%, #005f9e 50%, #0274b3 100%) !important;
+  box-shadow: 0 6px 20px rgba(0, 110, 178, 0.5) !important;
+  transform: translateY(-1px);
+}
+.btn-primary-pazino:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 110, 178, 0.3) !important;
+}
+.btn-primary-pazino:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Secondary Button: styled with clean hover borders and text glow in #006EB2 / #38BDF8 */
+.btn-secondary-pazino {
+  border: 1px solid #cbd5e1 !important;
+  background-color: #ffffff !important;
+  color: #006EB2 !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.dark .btn-secondary-pazino {
+  border: 1px solid #1f2937 !important;
+  background-color: #162030 !important;
+  color: #38BDF8 !important;
+}
+
+.btn-secondary-pazino:hover:not(:disabled) {
+  border-color: #006EB2 !important;
+  color: #006EB2 !important;
+  background-color: rgba(0, 110, 178, 0.06) !important;
+  box-shadow: 0 0 12px rgba(0, 110, 178, 0.35) !important;
+  text-shadow: 0 0 8px rgba(0, 110, 178, 0.4);
+}
+.dark .btn-secondary-pazino:hover:not(:disabled) {
+  border-color: #38BDF8 !important;
+  color: #38BDF8 !important;
+  background-color: rgba(56, 189, 248, 0.12) !important;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.4) !important;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+}
+
+/* Modern clean scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #283344;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #006EB2;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #38BDF8;
+}
+
+/* Creative Toast Animations */
+@keyframes shrinkWidth {
+  0% { width: 100%; }
+  100% { width: 0%; }
+}
+
+.animate-shrinkWidth {
+  animation: shrinkWidth 4.2s linear forwards;
+}
+
+@keyframes bounceInDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-22px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(3px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-dynamicIsland {
+  animation: bounceInDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
