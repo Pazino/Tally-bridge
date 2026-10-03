@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-title 🌉 Tally Bridge Control Center
+title Tally Bridge Control Center
 color 0b
 
 cd /d "%~dp0"
@@ -17,16 +17,16 @@ if /i "%~1"=="deps" goto :action_deps
 :menu
 cls
 echo ====================================================================
-echo   🌉 TALLY BRIDGE CONTROL CENTER  •  ALL-IN-ONE MANAGER
+echo   TALLY BRIDGE CONTROL CENTER - ALL-IN-ONE MANAGER
 echo ====================================================================
 echo.
-echo   [1] 🚀 Launch Desktop App (PyWebView GUI)
-echo   [2] 💻 Start Dev Mode (Vite HMR + FastAPI Server)
-echo   [3] 📦 Build Standalone Executable (PyInstaller)
-echo   [4] 🚀 Package & Publish GitHub Release (ZIP + Version Bump)
-echo   [5] 🔄 Sync / Push to GitHub Repository
-echo   [6] 🛠️  Install / Update Dependencies (npm & pip)
-echo   [0] ❌ Exit
+echo   [1] Launch Desktop App (PyWebView GUI)
+echo   [2] Start Dev Mode (Vite HMR + FastAPI Server)
+echo   [3] Build Standalone Executable (PyInstaller)
+echo   [4] Package and Publish GitHub Release (ZIP + Version Bump)
+echo   [5] Sync / Push to GitHub Repository
+echo   [6] Install / Update Dependencies (npm and pip)
+echo   [0] Exit
 echo.
 echo ====================================================================
 set /p CHOICE="Select an option [0-6]: "
@@ -50,7 +50,7 @@ goto :menu
 :: ====================================================================
 :action_desktop
 cls
-title 🌉 Tally Bridge Desktop App
+title Tally Bridge Desktop App
 color 0a
 echo ====================================================================
 echo   LAUNCHING TALLY BRIDGE MODERN DESKTOP APP
@@ -74,7 +74,7 @@ goto :menu
 :: ====================================================================
 :action_dev
 cls
-title 🌉 Tally Bridge Dev Server
+title Tally Bridge Dev Server
 color 0b
 echo ====================================================================
 echo   STARTING TALLY BRIDGE DEV ENVIRONMENT (REACT + FASTAPI)
@@ -95,7 +95,7 @@ goto :menu
 :: ====================================================================
 :action_build
 cls
-title 📦 Building Tally Bridge Desktop EXE
+title Building Tally Bridge Desktop EXE
 color 0a
 echo ====================================================================
 echo   STEP 1: BUILDING REACT PRODUCTION BUNDLE
@@ -149,7 +149,7 @@ copy /y "app_icon.png" "dist\TallyBridge\app_icon.png" >nul
 
 echo.
 echo ====================================================================
-echo [✓] Build completed! Standalone EXE is in: dist\TallyBridge\TallyBridge.exe
+echo [OK] Build completed! Standalone EXE is in: dist\TallyBridge\TallyBridge.exe
 echo ====================================================================
 if "%~1"=="" pause
 if "%~1"=="" goto :menu
@@ -157,14 +157,14 @@ exit /b 0
 
 
 :: ====================================================================
-:: [4] PACKAGE & PUBLISH GITHUB RELEASE
+:: [4] PACKAGE AND PUBLISH GITHUB RELEASE
 :: ====================================================================
 :action_release
 cls
-title 🚀 Tally Bridge Release Publisher
+title Tally Bridge Release Publisher
 color 0b
 echo ====================================================================
-echo   TALLY BRIDGE • GITHUB RELEASE PUBLISHER & PACKAGER
+echo   TALLY BRIDGE - GITHUB RELEASE PUBLISHER AND PACKAGER
 echo ====================================================================
 echo.
 
@@ -185,7 +185,7 @@ echo [*] Synchronizing version v%NEW_VERSION% in backend.py and config.json...
 python -c "import re; c=open('backend.py','r',encoding='utf-8').read(); c=re.sub(r'APP_VERSION = \".*?\"', f'APP_VERSION = \"'%NEW_VERSION%'\"', c, count=1); open('backend.py','w',encoding='utf-8').write(c)"
 python -c "import json; d=json.load(open('config.json', 'r', encoding='utf-8')); d['app_version']='%NEW_VERSION%'; json.dump(d, open('config.json', 'w', encoding='utf-8'), indent=2)"
 
-echo [✓] Version updated to v%NEW_VERSION%!
+echo [OK] Version updated to v%NEW_VERSION%!
 echo.
 
 echo [*] Compiling production build...
@@ -202,7 +202,7 @@ set ZIP_NAME=TallyBridge-v%NEW_VERSION%.zip
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path 'dist\TallyBridge\*' -DestinationPath '%ZIP_NAME%' -Force"
 
 echo.
-echo [✓] Release asset created successfully: %ZIP_NAME%
+echo [OK] Release asset created successfully: %ZIP_NAME%
 echo.
 echo ====================================================================
 echo   PUBLISH INSTRUCTIONS FOR GITHUB RELEASES:
@@ -235,7 +235,7 @@ goto :menu
 :: ====================================================================
 :action_push
 cls
-title 🔄 Sync Tally Bridge with GitHub
+title Sync Tally Bridge with GitHub
 color 0e
 echo ====================================================================
 echo   SYNC / PUSH TO GITHUB REPOSITORY
@@ -256,7 +256,7 @@ git push origin main
 
 echo.
 echo ====================================================================
-echo [✓] Git sync complete!
+echo [OK] Git sync complete!
 echo ====================================================================
 pause
 goto :menu
@@ -267,10 +267,10 @@ goto :menu
 :: ====================================================================
 :action_deps
 cls
-title 🛠️ Install / Update Dependencies
+title Install / Update Dependencies
 color 0d
 echo ====================================================================
-echo   INSTALLING DEPENDENCIES (PYTHON & NODE.JS)
+echo   INSTALLING DEPENDENCIES (PYTHON AND NODE.JS)
 echo ====================================================================
 echo.
 echo [*] Installing required Python libraries...
@@ -284,7 +284,7 @@ cd ..
 
 echo.
 echo ====================================================================
-echo [✓] All dependencies are verified and installed!
+echo [OK] All dependencies are verified and installed!
 echo ====================================================================
 pause
 goto :menu
