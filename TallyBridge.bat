@@ -184,16 +184,27 @@ if not exist "!ISCC_PATH!" (
     goto :menu
 )
 
+set "SETUP_EXE=dist_installer\TallyBridge-Setup-v!TARGET_VER!.exe"
+if exist "!SETUP_EXE!" del /f /q "!SETUP_EXE!" >nul 2>&1
+
+echo [*] Compiling Inno Setup script installer.iss for version v!TARGET_VER!...
 "!ISCC_PATH!" /DMyAppVersion=!TARGET_VER! "installer.iss"
 
 if errorlevel 1 (
     echo.
+    echo [*] Retrying compiler (waiting for antivirus file scanner to release lock)...
+    timeout /t 2 /nobreak >nul
+    if exist "!SETUP_EXE!" del /f /q "!SETUP_EXE!" >nul 2>&1
+    "!ISCC_PATH!" /DMyAppVersion=!TARGET_VER! "installer.iss"
+)
+
+if errorlevel 1 (
+    echo.
     echo [X] Inno Setup compilation failed!
+    echo Tip: Add an antivirus exclusion for the 'dist_installer' folder if Windows Defender is locking files.
     pause
     goto :menu
 )
-
-set "SETUP_EXE=dist_installer\TallyBridge-Setup-v!TARGET_VER!.exe"
 
 if not exist "!SETUP_EXE!" (
     echo.
