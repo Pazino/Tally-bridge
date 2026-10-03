@@ -5,45 +5,43 @@ color 0b
 
 cd /d "%~dp0"
 
-:: Set Inno Setup compiler path
 set "ISCC_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 
-:: If an argument was passed, jump straight to the action
+:: Direct parameter jump support
 if /i "%~1"=="desktop" goto :action_desktop
 if /i "%~1"=="run" goto :action_desktop
 if /i "%~1"=="dev" goto :action_dev
-if /i "%~1"=="build" goto :action_build
-if /i "%~1"=="installer" goto :action_installer
-if /i "%~1"=="setup" goto :action_installer
-if /i "%~1"=="release" goto :action_release
+if /i "%~1"=="build" goto :action_build_and_publish
+if /i "%~1"=="release" goto :action_build_and_publish
 if /i "%~1"=="push" goto :action_push
 if /i "%~1"=="deps" goto :action_deps
 
 :menu
 cls
+set "CURRENT_VER=1.0.0"
+for /f "tokens=*" %%v in ('python -c "import json; print(json.load(open('config.json', encoding='utf-8')).get('app_version', '1.0.0'))"') do set "CURRENT_VER=%%v"
+
 echo ====================================================================
 echo   TALLY BRIDGE CONTROL CENTER - ALL-IN-ONE MANAGER
+echo ====================================================================
+echo   Current Version: v!CURRENT_VER!
 echo ====================================================================
 echo.
 echo   [1] Launch Desktop App (PyWebView GUI)
 echo   [2] Start Dev Mode (Vite HMR + FastAPI Server)
-echo   [3] Build Desktop Files (PyInstaller)
-echo   [4] Build Windows Setup Installer EXE (Inno Setup)
-echo   [5] Package and Publish GitHub Release (Setup EXE + Tag Push)
-echo   [6] Sync / Push to GitHub Repository
-echo   [7] Install / Update Dependencies (npm and pip)
+echo   [3] Build and Publish Release Installer (EXE + Setup + GitHub)
+echo   [4] Sync / Push Code to GitHub
+echo   [5] Install / Update Dependencies (npm and pip)
 echo   [0] Exit
 echo.
 echo ====================================================================
-set /p CHOICE="Select an option [0-7]: "
+set /p CHOICE="Select an option [0-5]: "
 
 if "%CHOICE%"=="1" goto :action_desktop
 if "%CHOICE%"=="2" goto :action_dev
-if "%CHOICE%"=="3" goto :action_build
-if "%CHOICE%"=="4" goto :action_installer
-if "%CHOICE%"=="5" goto :action_release
-if "%CHOICE%"=="6" goto :action_push
-if "%CHOICE%"=="7" goto :action_deps
+if "%CHOICE%"=="3" goto :action_build_and_publish
+if "%CHOICE%"=="4" goto :action_push
+if "%CHOICE%"=="5" goto :action_deps
 if "%CHOICE%"=="0" exit /b 0
 
 echo.
@@ -98,19 +96,43 @@ goto :menu
 
 
 :: ====================================================================
-:: [3] BUILD DESKTOP APPLICATION (PYINSTALLER)
+:: [3] BUILD AND PUBLISH RELEASE INSTALLER (EXE + SETUP + GITHUB)
 :: ====================================================================
-:action_build
+:action_build_and_publish
 cls
-title Building Tally Bridge Desktop Application
+title Build and Publish Release Installer
 color 0a
 echo ====================================================================
-echo   STEP 1: BUILDING REACT PRODUCTION BUNDLE
+echo   BUILD AND PUBLISH RELEASE INSTALLER
+echo ====================================================================
+echo.
+echo Current App Version is: v!CURRENT_VER!
+echo.
+
+set "TARGET_VER="
+set /p "TARGET_VER=Enter Release Version [Press Enter to keep !CURRENT_VER!]: "
+if "!TARGET_VER!"=="" set "TARGET_VER=!CURRENT_VER!"
+if "!TARGET_VER:~0,1!"=="v" set "TARGET_VER=!TARGET_VER:~1!"
+
+echo.
+echo [*] Target Release Version: v!TARGET_VER!
+echo.
+echo [*] Synchronizing version v!TARGET_VER! across backend, config, and installer...
+python -c "import re; c=open('backend.py', encoding='utf-8').read(); c=re.sub(r'APP_VERSION = \".*?\"', 'APP_VERSION = \"!TARGET_VER!\"', c, count=1); open('backend.py', 'w', encoding='utf-8').write(c)"
+python -c "import json; d=json.load(open('config.json', encoding='utf-8')); d['app_version']='!TARGET_VER!'; json.dump(d, open('config.json', 'w', encoding='utf-8'), indent=2)"
+python -c "import re; c=open('installer.iss', encoding='utf-8').read(); c=re.sub(r'#define MyAppVersion \".*?\"', '#define MyAppVersion \"!TARGET_VER!\"', c, count=1); open('installer.iss', 'w', encoding='utf-8').write(c)"
+
+echo [OK] Version synchronized successfully!
+echo.
+
+echo ====================================================================
+echo   STEP 1/3: COMPILING REACT PRODUCTION BUNDLE
 echo ====================================================================
 echo.
 cd frontend
 call npm.cmd run build
-if %errorlevel% neq 0 (
+if errorlevel 1 (
+    echo.
     echo [X] Frontend build failed!
     cd ..
     pause
@@ -120,7 +142,7 @@ cd ..
 
 echo.
 echo ====================================================================
-echo   STEP 2: COMPILING STANDALONE DESKTOP APPLICATION WITH PYINSTALLER
+echo   STEP 2/3: COMPILING DESKTOP APPLICATION WITH PYINSTALLER
 echo ====================================================================
 echo.
 pyinstaller --noconfirm --onedir --windowed ^
@@ -140,58 +162,28 @@ pyinstaller --noconfirm --onedir --windowed ^
   --hidden-import "PIL" ^
   desktop_app.py
 
-if %errorlevel% neq 0 (
+if errorlevel 1 (
+    echo.
     echo [X] PyInstaller compilation failed!
     pause
     goto :menu
 )
 
-echo.
-echo ====================================================================
-echo   STEP 3: CONFIGURING ASSETS IN ROOT DISTRIBUTION FOLDER
-echo ====================================================================
 copy /y "config.json" "dist\TallyBridge\config.json" >nul
 copy /y "app_icon.ico" "dist\TallyBridge\app_icon.ico" >nul
 copy /y "app_icon.png" "dist\TallyBridge\app_icon.png" >nul
 
 echo.
 echo ====================================================================
-echo [OK] Build completed! Files are in: dist\TallyBridge\
-echo ====================================================================
-if "%~1"=="" pause
-if "%~1"=="" goto :menu
-exit /b 0
-
-
-:: ====================================================================
-:: [4] BUILD WINDOWS SETUP INSTALLER EXE (INNO SETUP)
-:: ====================================================================
-:action_installer
-cls
-title Building Windows Setup Installer EXE
-color 0a
-echo ====================================================================
-echo   BUILDING STANDALONE WINDOWS SETUP INSTALLER (INNO SETUP)
+echo   STEP 3/3: COMPILING WINDOWS SETUP INSTALLER (INNO SETUP)
 echo ====================================================================
 echo.
-
-if not exist "dist\TallyBridge\TallyBridge.exe" (
-    echo [*] Compiled application not found. Running build first...
-    call :action_build "batch"
-)
-
 if not exist "!ISCC_PATH!" (
     echo [X] Inno Setup compiler not found at: "!ISCC_PATH!"
-    echo Please install Inno Setup 6 to compile the installer.
     pause
     goto :menu
-set "TARGET_VER=%~2"
-if "!TARGET_VER!"=="" (
-    for /f "tokens=*" %%v in ('python -c "import json; print(json.load(open('config.json', encoding='utf-8')).get('app_version', '1.0.0'))"') do set "TARGET_VER=%%v"
 )
-if "!TARGET_VER!"=="" set "TARGET_VER=1.0.0"
 
-echo [*] Compiling Inno Setup script installer.iss for version v!TARGET_VER!...
 "!ISCC_PATH!" /DMyAppVersion=!TARGET_VER! "installer.iss"
 
 if errorlevel 1 (
@@ -201,56 +193,10 @@ if errorlevel 1 (
     goto :menu
 )
 
-echo.
-echo ====================================================================
-echo [OK] Standalone Windows Setup Installer created successfully!
-echo Output file: dist_installer\TallyBridge-Setup-v!TARGET_VER!.exe
-echo ====================================================================
-echo.
-if /i "%~1"=="batch" exit /b 0
-pause
-goto :menu
-
-
-:: ====================================================================
-:: [5] PACKAGE AND PUBLISH GITHUB RELEASE
-:: ====================================================================
-:action_release
-cls
-title Tally Bridge Release Publisher
-color 0b
-echo ====================================================================
-echo   TALLY BRIDGE - GITHUB RELEASE PUBLISHER AND PACKAGER
-echo ====================================================================
-echo.
-
-set NEW_VERSION=%~2
-if "%NEW_VERSION%"=="" (
-    set /p NEW_VERSION="Enter release version tag (e.g. 1.0.1): "
-)
-if "%NEW_VERSION%"=="" (
-    echo [X] Version cannot be empty!
-    pause
-    goto :menu
-)
-
-if "%NEW_VERSION:~0,1%"=="v" set NEW_VERSION=%NEW_VERSION:~1%
-
-echo.
-echo [*] Synchronizing version v%NEW_VERSION% across backend and config...
-python -c "import re; c=open('backend.py','r',encoding='utf-8').read(); c=re.sub(r'APP_VERSION = \".*?\"', f'APP_VERSION = \"'%NEW_VERSION%'\"', c, count=1); open('backend.py','w',encoding='utf-8').write(c)"
-python -c "import json; d=json.load(open('config.json', 'r', encoding='utf-8')); d['app_version']='%NEW_VERSION%'; json.dump(d, open('config.json', 'w', encoding='utf-8'), indent=2)"
-
-echo [OK] Version updated to v%NEW_VERSION%!
-echo.
-
-echo [*] Compiling production build and standalone setup installer...
-call :action_build "batch"
-call :action_installer "batch" "!NEW_VERSION!"
-
-set "SETUP_EXE=dist_installer\TallyBridge-Setup-v!NEW_VERSION!.exe"
+set "SETUP_EXE=dist_installer\TallyBridge-Setup-v!TARGET_VER!.exe"
 
 if not exist "!SETUP_EXE!" (
+    echo.
     echo [X] Could not find generated installer: !SETUP_EXE!
     pause
     goto :menu
@@ -258,42 +204,45 @@ if not exist "!SETUP_EXE!" (
 
 echo.
 echo ====================================================================
-echo   AUTOMATED GIT SYNC AND RELEASE TAGGING
+echo [OK] STANDALONE INSTALLER CREATED: !SETUP_EXE!
 echo ====================================================================
 echo.
 
-echo [*] Staging and committing release v%NEW_VERSION%...
+echo ====================================================================
+echo   GIT SYNC AND RELEASE TAGGING
+echo ====================================================================
+echo [*] Staging all files and committing release v!TARGET_VER!...
 git add -A
-git commit -m "Release v%NEW_VERSION%"
+git commit -m "Release v!TARGET_VER!"
 
-echo [*] Pushing changes to origin main...
+echo [*] Pushing main branch to GitHub...
 git push origin main
 
-echo [*] Creating and pushing Git tag v%NEW_VERSION%...
-git tag -a v%NEW_VERSION% -m "Release v%NEW_VERSION%"
-git push origin v%NEW_VERSION%
+echo [*] Creating and pushing Git tag v!TARGET_VER!...
+git tag -a v!TARGET_VER! -m "Release v!TARGET_VER!"
+git push origin v!TARGET_VER!
 
 echo.
 echo ====================================================================
-echo [OK] Code and tag v%NEW_VERSION% pushed to GitHub!
+echo [OK] Code and tag v!TARGET_VER! pushed to GitHub!
 echo ====================================================================
 echo.
-echo [*] Opening GitHub Releases page in your browser...
-start https://github.com/Pazino/Tally-Bridge/releases/new?tag=v%NEW_VERSION%
+echo [*] Launching GitHub Releases page in browser...
+start "" "https://github.com/Pazino/Tally-Bridge/releases/new?tag=v!TARGET_VER!"
 
-echo [*] Opening Setup Installer in File Explorer...
-explorer /select,"%SETUP_EXE%"
+echo [*] Highlighting setup installer in File Explorer...
+explorer /select,"!SETUP_EXE!"
 
 echo.
-echo Final step: Just drag and drop '%SETUP_EXE%' into the GitHub Releases
-echo page and click 'Publish release'!
+echo Final step: Just drag and drop '!SETUP_EXE!' into the GitHub Releases
+echo page in your browser and click 'Publish release'!
 echo.
 pause
 goto :menu
 
 
 :: ====================================================================
-:: [6] SYNC / PUSH TO GITHUB
+:: [4] SYNC / PUSH TO GITHUB
 :: ====================================================================
 :action_push
 cls
@@ -325,7 +274,7 @@ goto :menu
 
 
 :: ====================================================================
-:: [7] INSTALL / UPDATE DEPENDENCIES
+:: [5] INSTALL / UPDATE DEPENDENCIES
 :: ====================================================================
 :action_deps
 cls
