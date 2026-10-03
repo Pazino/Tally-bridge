@@ -204,27 +204,37 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path '
 echo.
 echo [OK] Release asset created successfully: %ZIP_NAME%
 echo.
+echo.
 echo ====================================================================
-echo   PUBLISH INSTRUCTIONS FOR GITHUB RELEASES:
+echo   AUTOMATED GIT SYNC AND RELEASE TAGGING
 echo ====================================================================
 echo.
-echo 1. Commit and push code updates:
-echo    git add -A
-echo    git commit -m "Prepare release v%NEW_VERSION%"
-echo    git push origin main
+
+echo [*] Staging and committing release v%NEW_VERSION%...
+git add -A
+git commit -m "Release v%NEW_VERSION%"
+
+echo [*] Pushing changes to origin main...
+git push origin main
+
+echo [*] Creating and pushing Git tag v%NEW_VERSION%...
+git tag -a v%NEW_VERSION% -m "Release v%NEW_VERSION%"
+git push origin v%NEW_VERSION%
+
 echo.
-echo 2. Create and push Git tag:
-echo    git tag -a v%NEW_VERSION% -m "Release v%NEW_VERSION%"
-echo    git push origin v%NEW_VERSION%
+echo ====================================================================
+echo [OK] Code and tag v%NEW_VERSION% pushed to GitHub!
+echo ====================================================================
 echo.
-echo 3. Upload '%ZIP_NAME%' to GitHub Releases:
-echo    https://github.com/Pazino/Tally-Bridge/releases/new
-echo    - Tag: v%NEW_VERSION%
-echo    - Title: Tally Bridge v%NEW_VERSION%
-echo    - Attach: %ZIP_NAME%
+echo [*] Opening GitHub Releases page in your browser...
+start https://github.com/Pazino/Tally-Bridge/releases/new?tag=v%NEW_VERSION%
+
+echo [*] Opening release ZIP in File Explorer...
+explorer /select,"%ZIP_NAME%"
+
 echo.
-echo Once published, all staff instances will automatically detect v%NEW_VERSION%
-echo and can auto-update with 1 click!
+echo Final step: Just drag and drop '%ZIP_NAME%' into the GitHub Releases
+echo page and click 'Publish release'!
 echo.
 pause
 goto :menu
