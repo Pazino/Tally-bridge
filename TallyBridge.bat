@@ -7,6 +7,11 @@ cd /d "%~dp0"
 
 set "ISCC_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 
+:: Initialize current version from config.json immediately
+set "CURRENT_VER=1.0.0"
+for /f "tokens=*" %%v in ('python -c "import json; print(json.load(open('config.json', encoding='utf-8')).get('app_version', '1.0.0'))" 2^>nul') do set "CURRENT_VER=%%v"
+if "!CURRENT_VER!"=="" set "CURRENT_VER=1.0.0"
+
 :: Direct parameter jump support
 if /i "%~1"=="desktop" goto :action_desktop
 if /i "%~1"=="run" goto :action_desktop
@@ -18,8 +23,9 @@ if /i "%~1"=="deps" goto :action_deps
 
 :menu
 cls
-set "CURRENT_VER=1.0.0"
-for /f "tokens=*" %%v in ('python -c "import json; print(json.load(open('config.json', encoding='utf-8')).get('app_version', '1.0.0'))"') do set "CURRENT_VER=%%v"
+:: Re-read current version for menu display
+for /f "tokens=*" %%v in ('python -c "import json; print(json.load(open('config.json', encoding='utf-8')).get('app_version', '1.0.0'))" 2^>nul') do set "CURRENT_VER=%%v"
+if "!CURRENT_VER!"=="" set "CURRENT_VER=1.0.0"
 
 echo ====================================================================
 echo   TALLY BRIDGE CONTROL CENTER - ALL-IN-ONE MANAGER
@@ -66,9 +72,9 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :19876') do taskkill /f /pid 
 
 echo [*] Starting PyWebView desktop application...
 python desktop_app.py
-if %errorlevel% neq 0 (
+if errorlevel 1 (
     echo.
-    echo [X] Desktop app exited with error code %errorlevel%.
+    echo [X] Desktop app exited with an error.
     pause
 )
 goto :menu
@@ -110,14 +116,18 @@ echo Current App Version is: v!CURRENT_VER!
 echo.
 
 set "TARGET_VER="
-set /p "TARGET_VER=Enter Release Version [Press Enter to keep !CURRENT_VER!]: "
+set /p "TARGET_VER=Enter Release Version (e.g. 1.0.2) [Press Enter to keep !CURRENT_VER!]: "
 if "!TARGET_VER!"=="" set "TARGET_VER=!CURRENT_VER!"
+if "!TARGET_VER!"=="" set "TARGET_VER=1.0.0"
+
+:: Safely strip leading 'v'
 if "!TARGET_VER:~0,1!"=="v" set "TARGET_VER=!TARGET_VER:~1!"
+if "!TARGET_VER:~0,1!"=="V" set "TARGET_VER=!TARGET_VER:~1!"
 
 echo.
-echo [*] Target Release Version: v!TARGET_VER!
+echo [*] Release Version selected: v!TARGET_VER!
 echo.
-echo [*] Synchronizing version v!TARGET_VER! across backend, config, and installer...
+echo [*] Synchronizing version v!TARGET_VER! across project files...
 python -c "import re; c=open('backend.py', encoding='utf-8').read(); c=re.sub(r'APP_VERSION = \".*?\"', 'APP_VERSION = \"!TARGET_VER!\"', c, count=1); open('backend.py', 'w', encoding='utf-8').write(c)"
 python -c "import json; d=json.load(open('config.json', encoding='utf-8')); d['app_version']='!TARGET_VER!'; json.dump(d, open('config.json', 'w', encoding='utf-8'), indent=2)"
 python -c "import re; c=open('installer.iss', encoding='utf-8').read(); c=re.sub(r'#define MyAppVersion \".*?\"', '#define MyAppVersion \"!TARGET_VER!\"', c, count=1); open('installer.iss', 'w', encoding='utf-8').write(c)"
@@ -145,7 +155,7 @@ echo ====================================================================
 echo   STEP 2/3: COMPILING DESKTOP APPLICATION WITH PYINSTALLER
 echo ====================================================================
 echo.
-pyinstaller --noconfirm --onedir --windowed ^
+call pyinstaller --noconfirm --onedir --windowed ^
   --icon "app_icon.ico" ^
   --name "TallyBridge" ^
   --add-data "frontend/dist;frontend/dist" ^
@@ -187,12 +197,12 @@ if not exist "!ISCC_PATH!" (
 set "SETUP_EXE=dist_installer\TallyBridge-Setup-v!TARGET_VER!.exe"
 if exist "!SETUP_EXE!" del /f /q "!SETUP_EXE!" >nul 2>&1
 
-echo [*] Compiling Inno Setup script installer.iss for version v!TARGET_VER!...
+echo [*] Running Inno Setup compiler for version v!TARGET_VER!...
 "!ISCC_PATH!" /DMyAppVersion=!TARGET_VER! "installer.iss"
 
 if errorlevel 1 (
     echo.
-    echo [*] Retrying compiler (waiting for antivirus file scanner to release lock)...
+    echo [*] Retrying compiler (waiting 2s for file lock release)...
     timeout /t 2 /nobreak >nul
     if exist "!SETUP_EXE!" del /f /q "!SETUP_EXE!" >nul 2>&1
     "!ISCC_PATH!" /DMyAppVersion=!TARGET_VER! "installer.iss"
@@ -201,7 +211,6 @@ if errorlevel 1 (
 if errorlevel 1 (
     echo.
     echo [X] Inno Setup compilation failed!
-    echo Tip: Add an antivirus exclusion for the 'dist_installer' folder if Windows Defender is locking files.
     pause
     goto :menu
 )
@@ -229,9 +238,9 @@ git commit -m "Release v!TARGET_VER!"
 echo [*] Pushing main branch to GitHub...
 git push origin main
 
-echo [*] Creating and pushing Git tag v!TARGET_VER!...
-git tag -a v!TARGET_VER! -m "Release v!TARGET_VER!"
-git push origin v!TARGET_VER!
+echo [*] Setting Git release tag v!TARGET_VER!...
+git tag -fa "v!TARGET_VER!" -m "Release v!TARGET_VER!" >nul 2>&1
+git push -f origin "v!TARGET_VER!"
 
 echo.
 echo ====================================================================
@@ -239,14 +248,17 @@ echo [OK] Code and tag v!TARGET_VER! pushed to GitHub!
 echo ====================================================================
 echo.
 echo [*] Launching GitHub Releases page in browser...
-start "" "https://github.com/Pazino/Tally-Bridge/releases/new?tag=v!TARGET_VER!"
+start "" "https://github.com/Pazino/Tally-bridge/releases/new?tag=v!TARGET_VER!"
 
 echo [*] Highlighting setup installer in File Explorer...
 explorer /select,"!SETUP_EXE!"
 
 echo.
-echo Final step: Just drag and drop '!SETUP_EXE!' into the GitHub Releases
-echo page in your browser and click 'Publish release'!
+echo ====================================================================
+echo   SUCCESS! NEXT STEP:
+echo ====================================================================
+echo Just drag and drop '!SETUP_EXE!' into the GitHub Releases
+echo browser page that was just opened, and click 'Publish release'!
 echo.
 pause
 goto :menu
