@@ -185,10 +185,14 @@ if not exist "!ISCC_PATH!" (
     echo Please install Inno Setup 6 to compile the installer.
     pause
     goto :menu
+set "TARGET_VER=%~2"
+if "!TARGET_VER!"=="" (
+    for /f "tokens=*" %%v in ('python -c "import json; print(json.load(open('config.json', encoding='utf-8')).get('app_version', '1.0.0'))"') do set "TARGET_VER=%%v"
 )
+if "!TARGET_VER!"=="" set "TARGET_VER=1.0.0"
 
-echo [*] Compiling Inno Setup script installer.iss...
-"!ISCC_PATH!" "installer.iss"
+echo [*] Compiling Inno Setup script installer.iss for version v!TARGET_VER!...
+"!ISCC_PATH!" /DMyAppVersion=!TARGET_VER! "installer.iss"
 
 if errorlevel 1 (
     echo.
@@ -200,7 +204,7 @@ if errorlevel 1 (
 echo.
 echo ====================================================================
 echo [OK] Standalone Windows Setup Installer created successfully!
-echo Output file is located in: dist_installer\
+echo Output file: dist_installer\TallyBridge-Setup-v!TARGET_VER!.exe
 echo ====================================================================
 echo.
 if /i "%~1"=="batch" exit /b 0
@@ -233,22 +237,21 @@ if "%NEW_VERSION%"=="" (
 if "%NEW_VERSION:~0,1%"=="v" set NEW_VERSION=%NEW_VERSION:~1%
 
 echo.
-echo [*] Synchronizing version v%NEW_VERSION% across backend, config, and installer...
+echo [*] Synchronizing version v%NEW_VERSION% across backend and config...
 python -c "import re; c=open('backend.py','r',encoding='utf-8').read(); c=re.sub(r'APP_VERSION = \".*?\"', f'APP_VERSION = \"'%NEW_VERSION%'\"', c, count=1); open('backend.py','w',encoding='utf-8').write(c)"
 python -c "import json; d=json.load(open('config.json', 'r', encoding='utf-8')); d['app_version']='%NEW_VERSION%'; json.dump(d, open('config.json', 'w', encoding='utf-8'), indent=2)"
-python -c "import re; c=open('installer.iss','r',encoding='utf-8').read(); c=re.sub(r'#define MyAppVersion \".*?\"', f'#define MyAppVersion \"'%NEW_VERSION%'\"', c, count=1); open('installer.iss','w',encoding='utf-8').write(c)"
 
 echo [OK] Version updated to v%NEW_VERSION%!
 echo.
 
 echo [*] Compiling production build and standalone setup installer...
 call :action_build "batch"
-call :action_installer "batch"
+call :action_installer "batch" "!NEW_VERSION!"
 
-set SETUP_EXE=dist_installer\TallyBridge-Setup-v%NEW_VERSION%.exe
+set "SETUP_EXE=dist_installer\TallyBridge-Setup-v!NEW_VERSION!.exe"
 
-if not exist "%SETUP_EXE%" (
-    echo [X] Could not find generated installer: %SETUP_EXE%
+if not exist "!SETUP_EXE!" (
+    echo [X] Could not find generated installer: !SETUP_EXE!
     pause
     goto :menu
 )
