@@ -180,17 +180,18 @@ if not exist "dist\TallyBridge\TallyBridge.exe" (
     call :action_build "batch"
 )
 
-if not exist "%ISCC_PATH%" (
-    echo [X] Inno Setup compiler not found at: %ISCC_PATH%
+if not exist "!ISCC_PATH!" (
+    echo [X] Inno Setup compiler not found at: "!ISCC_PATH!"
     echo Please install Inno Setup 6 to compile the installer.
     pause
     goto :menu
 )
 
 echo [*] Compiling Inno Setup script installer.iss...
-"%ISCC_PATH%" "installer.iss"
+"!ISCC_PATH!" "installer.iss"
 
-if %errorlevel% neq 0 (
+if errorlevel 1 (
+    echo.
     echo [X] Inno Setup compilation failed!
     pause
     goto :menu
@@ -199,11 +200,12 @@ if %errorlevel% neq 0 (
 echo.
 echo ====================================================================
 echo [OK] Standalone Windows Setup Installer created successfully!
-echo Location: dist_installer\
+echo Output file is located in: dist_installer\
 echo ====================================================================
-if "%~1"=="" pause
-if "%~1"=="" goto :menu
-exit /b 0
+echo.
+if /i "%~1"=="batch" exit /b 0
+pause
+goto :menu
 
 
 :: ====================================================================
