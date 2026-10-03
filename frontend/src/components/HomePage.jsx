@@ -3,23 +3,9 @@ import {
   Building2,
   BarChart3,
   Sliders,
-  CheckCircle2,
-  AlertTriangle,
   ArrowRight,
-  Server,
   Zap,
-  Sparkles,
-  TrendingUp,
-  FileSpreadsheet,
-  Layers,
-  ShieldCheck,
-  RefreshCw,
-  FolderTree,
-  Lightbulb,
-  PieChart,
-  Activity,
-  Clock,
-  ExternalLink
+  Sparkles
 } from "lucide-react";
 import logoImg from "../assets/logo.png";
 
@@ -164,144 +150,6 @@ export default function HomePage({ theme, pingData, onNavigate }) {
             <div className="mt-5 pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
               <span>Manage Branch Mappings</span>
               <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Blueprint & Future Dashboard Ideas Section */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-slate-50 dark:bg-[#0a0f18] border border-slate-200 dark:border-white/10 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400">
-              <Lightbulb size={20} />
-            </div>
-            <div>
-              <h2 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">
-                Dashboard Concept Blueprint & Recommended Widgets
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Proposed visual modules for our future central executive dashboard
-              </p>
-            </div>
-          </div>
-          <span className="text-[11px] font-extrabold px-3 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20 w-fit">
-            Future Dashboard Preview
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Idea 1: Executive KPI Summary */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-white/5 space-y-3 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
-                <PieChart size={14} />
-                Executive COS Variance KPI
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-500 font-bold">
-                Idea #1
-              </span>
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              High-level cards showing <b>Total Monthly Purchases</b>, <b>Total IBT Transfers</b>, and <b>Net COS Variance</b> across all 30 branches. Gives management an instant pulse on financial balance.
-            </p>
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 text-[11px] text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-white/5">
-              💡 <i>Shows RBM COS vs Tally COS difference with percentage deviation tags.</i>
-            </div>
-          </div>
-
-          {/* Idea 2: Branch Health Matrix */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-white/5 space-y-3 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Activity size={14} />
-                30-Branch Health Matrix
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 font-bold">
-                Idea #2
-              </span>
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Visual grid/heatmap of all 30 branches with color-coded status badges: <b>Green (Matched)</b> vs <b>Red (Discrepancy &gt; R100)</b>. Clicking any branch drills directly into its ledger breakdown.
-            </p>
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 text-[11px] text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-white/5">
-              💡 <i>Immediately highlights which branches (e.g. Bushbuckridge, Driekop) need attention.</i>
-            </div>
-          </div>
-
-          {/* Idea 3: Unmapped Exception Radar */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-white/5 space-y-3 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                <AlertTriangle size={14} />
-                Unmapped Ledger Alert Radar
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 font-bold">
-                Idea #3
-              </span>
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Real-time counter badge alerting the finance team whenever Tally accountants create a new ledger under any of the 6 target groups that hasn't been assigned to a branch yet.
-            </p>
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 text-[11px] text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-white/5">
-              💡 <i>Prevents month-end reconciliation errors before reports are finalized.</i>
-            </div>
-          </div>
-
-          {/* Idea 4: Sync & Audit Log Timeline */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-white/5 space-y-3 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Clock size={14} />
-                Sync Audit & Activity Feed
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-500 font-bold">
-                Idea #4
-              </span>
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Interactive timeline showing the latest Daybook sync runs, timestamps, total vouchers processed, speed, and any connection errors encountered.
-            </p>
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 text-[11px] text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-white/5">
-              💡 <i>Provides complete transparency on when data was last updated from Tally.</i>
-            </div>
-          </div>
-
-          {/* Idea 5: Discrepancy Trend Sparklines */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-white/5 space-y-3 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
-                <TrendingUp size={14} />
-                Multi-Month Variance Trends
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-500 font-bold">
-                Idea #5
-              </span>
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Comparison chart showing variance trends month-over-month (e.g. July vs August vs September). Helps track whether discrepancy margins are improving over time.
-            </p>
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 text-[11px] text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-white/5">
-              💡 <i>Historical audit trail demonstrating month-over-month variance reduction.</i>
-            </div>
-          </div>
-
-          {/* Idea 6: One-Click Excel Packager */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-white/5 space-y-3 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                <FileSpreadsheet size={14} />
-                1-Click Executive Excel Export
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 font-bold">
-                Idea #6
-              </span>
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Direct button from the dashboard to download the fully formatted, color-coded COS Discrepancy Excel workbook for the current active month with zero clicks needed.
-            </p>
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 text-[11px] text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-white/5">
-              💡 <i>Ready-to-email spreadsheet matching the executive Laduma reporting format.</i>
             </div>
           </div>
         </div>
