@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Building2, 
   BarChart3, 
@@ -29,6 +29,16 @@ export default function Sidebar({
   onOpenUpdateModal,
   unmappedCount = 0
 }) {
+  const [settingsOpen, setSettingsOpen] = useState(() => activeNav.startsWith("settings"));
+
+  useEffect(() => {
+    if (activeNav.startsWith("settings")) {
+      setSettingsOpen(true);
+    } else {
+      setSettingsOpen(false);
+    }
+  }, [activeNav]);
+
   return (
     <aside
       className={`transition-all duration-300 flex flex-col justify-between border-r border-slate-200 dark:border-[#1f2937]/70 bg-white/95 dark:bg-[#0d121c]/90 backdrop-blur-2xl ${
@@ -173,8 +183,14 @@ export default function Sidebar({
           <div className="space-y-1">
             <button
               onClick={() => {
-                if (activeNav !== "settings_ledgers" && activeNav !== "settings_branches") {
-                  setActiveNav("settings_ledgers");
+                if (collapsed && setCollapsed) setCollapsed(false);
+                if (!settingsOpen) {
+                  setSettingsOpen(true);
+                  if (!activeNav.startsWith("settings")) {
+                    setActiveNav("settings_ledgers");
+                  }
+                } else {
+                  setSettingsOpen(false);
                 }
               }}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl font-medium text-sm transition-all text-left relative overflow-hidden group ${
@@ -211,17 +227,17 @@ export default function Sidebar({
                   )}
                   <ChevronDown
                     size={14}
-                    className={`text-slate-400 transition-transform ${
-                      activeNav.startsWith("settings") ? "rotate-0 text-amber-500" : "-rotate-90"
+                    className={`text-slate-400 transition-transform duration-200 ${
+                      settingsOpen ? "rotate-0 text-amber-500" : "-rotate-90"
                     }`}
                   />
                 </div>
               )}
             </button>
 
-            {/* Sub-menus */}
-            {!collapsed && (
-              <div className="pl-4 pr-1 py-1 space-y-1">
+            {/* Sub-menus: visible only once clicked on Settings */}
+            {!collapsed && settingsOpen && (
+              <div className="pl-4 pr-1 py-1 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
                 {/* Sub-menu 1: Ledger Mapping */}
                 <button
                   onClick={() => setActiveNav("settings_ledgers")}
