@@ -1615,16 +1615,24 @@ def api_check_updates():
             except Exception:
                 is_newer = (latest_tag != curr_ver)
 
-            download_url = ""
-            asset_name = ""
-            asset_size = 0
+            # Search for release asset: prioritize .zip for background auto-updates, fallback to .exe setup
+            chosen_asset = None
             for asset in rel.get("assets", []):
-                name = asset.get("name", "")
-                if name.endswith(".zip") or name.endswith(".exe"):
-                    download_url = asset.get("browser_download_url", "")
-                    asset_name = name
-                    asset_size = asset.get("size", 0)
+                name = asset.get("name", "").lower()
+                if name.endswith(".zip"):
+                    chosen_asset = asset
                     break
+            
+            if not chosen_asset:
+                for asset in rel.get("assets", []):
+                    name = asset.get("name", "").lower()
+                    if name.endswith(".exe"):
+                        chosen_asset = asset
+                        break
+
+            download_url = chosen_asset.get("browser_download_url", "") if chosen_asset else ""
+            asset_name = chosen_asset.get("name", "") if chosen_asset else ""
+            asset_size = chosen_asset.get("size", 0) if chosen_asset else 0
 
             return {
                 "status": "ok",
@@ -1657,7 +1665,7 @@ def api_check_updates():
     except Exception as e:
         return {"status": "error", "current_version": APP_VERSION, "update_available": False, "message": str(e)}
 
-def _download_worker(download_url: str, target_zip: str, target_ver: str):
+def _download_worker(download_url: str, target_file: str, target_ver: str):
     try:
         headers = {"User-Agent": "TallyBridge-Desktop"}
         with requests.get(download_url, headers=headers, stream=True, timeout=60) as r:
@@ -1665,7 +1673,7 @@ def _download_worker(download_url: str, target_zip: str, target_ver: str):
             total_size = int(r.headers.get("content-length", 0))
             downloaded = 0
             
-            with open(target_zip, "wb") as f:
+            with open(target_file, "wb") as f:
                 for chunk in r.iter_content(chunk_size=65536):
                     if chunk:
                         f.write(chunk)
@@ -1679,13 +1687,20 @@ def _download_worker(download_url: str, target_zip: str, target_ver: str):
                                 update_state["progress"] = 50
 
         # Validate downloaded package
-        if target_zip.lower().endswith(".zip") and not zipfile.is_zipfile(target_zip):
-            raise Exception("Downloaded file is not a valid ZIP package.")
+        if target_file.lower().endswith(".zip"):
+            if not zipfile.is_zipfile(target_file):
+                raise Exception("Downloaded file is not a valid ZIP package.")
+        elif target_file.lower().endswith(".exe"):
+            if not os.path.exists(target_file) or os.path.getsize(target_file) < 500000:
+                raise Exception("Downloaded installer executable is incomplete or corrupt.")
+            with open(target_file, "rb") as f:
+                if f.read(2) != b"MZ":
+                    raise Exception("Downloaded installer is not a valid Windows executable.")
 
         with update_lock:
             update_state["status"] = "completed"
             update_state["progress"] = 100
-            update_state["zip_path"] = target_zip
+            update_state["zip_path"] = target_file
             update_state["version"] = target_ver
     except Exception as e:
         with update_lock:
@@ -1705,10 +1720,18 @@ def api_download_update(data: dict):
         
         update_dir = os.path.join(tempfile.gettempdir(), "TallyBridge_Update")
         os.makedirs(update_dir, exist_ok=True)
-        target_zip = os.path.join(update_dir, "update_package.zip")
-        if os.path.exists(target_zip):
+        
+        # Determine actual file extension from download URL
+        parsed_url = urllib.parse.urlparse(url)
+        raw_fname = os.path.basename(parsed_url.path)
+        ext = os.path.splitext(raw_fname)[1].lower() if raw_fname else ""
+        if ext not in [".zip", ".exe"]:
+            ext = ".zip" if "zip" in url.lower() else ".exe"
+
+        target_file = os.path.join(update_dir, f"update_package{ext}")
+        if os.path.exists(target_file):
             try:
-                os.remove(target_zip)
+                os.remove(target_file)
             except Exception:
                 pass
 
@@ -1720,7 +1743,7 @@ def api_download_update(data: dict):
         update_state["zip_path"] = ""
         update_state["version"] = version
 
-    t = threading.Thread(target=_download_worker, args=(url, target_zip, version), daemon=True)
+    t = threading.Thread(target=_download_worker, args=(url, target_file, version), daemon=True)
     t.start()
     return {"status": "ok", "message": "Download started in background."}
 
@@ -1770,8 +1793,8 @@ if exist "{target_dir}\\config.json" (
 
 echo [3/5] Applying updated application files...
 if /i "{os.path.splitext(zip_path)[1]}"==".exe" (
-    echo [*] Replacing standalone executable...
-    copy /y "{zip_path}" "{target_dir}\\{exe_name}" >nul
+    echo [*] Running Windows setup installer silently...
+    start /wait "" "{zip_path}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="{target_dir}"
 ) else (
     set STAGE_DIR={update_dir}\\staging
     if exist "%STAGE_DIR%" rd /s /q "%STAGE_DIR%"
