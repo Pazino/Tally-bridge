@@ -195,17 +195,10 @@ if errorlevel 1 goto :inno_failed
 :inno_done
 if not exist "!SETUP_EXE!" goto :inno_missing
 
-set "UPDATE_ZIP=dist_installer\TallyBridge-v!TARGET_VER!.zip"
-echo.
-echo [*] Packaging in-app auto-update ZIP package: !UPDATE_ZIP!...
-if exist "!UPDATE_ZIP!" del /f /q "!UPDATE_ZIP!" >nul 2>&1
-powershell -NoProfile -Command "Compress-Archive -Path 'dist\TallyBridge\*' -DestinationPath '!UPDATE_ZIP!' -Force"
-
 echo.
 echo ====================================================================
-echo [OK] PACKAGING COMPLETED SUCCESSFULLY:
-echo   1. Windows Setup Installer: !SETUP_EXE!
-echo   2. In-App Auto-Update ZIP:  !UPDATE_ZIP!
+echo [OK] STANDALONE WINDOWS INSTALLER CREATED:
+echo   !SETUP_EXE!
 echo ====================================================================
 echo.
 
@@ -231,19 +224,16 @@ echo.
 echo [*] Launching GitHub Releases page in default browser...
 start "" "https://github.com/Pazino/Tally-bridge/releases/new?tag=v!TARGET_VER!"
 
-echo [*] Opening dist_installer folder in File Explorer...
-start "" explorer.exe "%CD%\dist_installer"
+echo [*] Highlighting setup installer in File Explorer...
+start "" explorer.exe /select,"%CD%\!SETUP_EXE!"
 
 echo.
 echo ====================================================================
 echo   RELEASE PACKAGED SUCCESSFULLY!
 echo ====================================================================
 echo 1. The GitHub Releases page was opened in your browser.
-echo 2. File Explorer was opened showing 'dist_installer\'.
-echo 3. Upload BOTH files to GitHub Releases:
-echo      - '!SETUP_EXE!' (for new users running setup)
-echo      - '!UPDATE_ZIP!' (for staff using the in-app auto-updater)
-echo 4. Click 'Publish release' on GitHub!
+echo 2. File Explorer was opened with '!SETUP_EXE!' selected.
+echo 3. Drag and drop '!SETUP_EXE!' into GitHub Releases and click 'Publish release'!
 echo ====================================================================
 echo.
 pause

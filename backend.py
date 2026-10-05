@@ -1615,20 +1615,13 @@ def api_check_updates():
             except Exception:
                 is_newer = (latest_tag != curr_ver)
 
-            # Search for release asset: prioritize .zip for background auto-updates, fallback to .exe setup
+            # Look exclusively for the Windows Setup installer executable (.exe)
             chosen_asset = None
             for asset in rel.get("assets", []):
                 name = asset.get("name", "").lower()
-                if name.endswith(".zip"):
+                if name.endswith(".exe"):
                     chosen_asset = asset
                     break
-            
-            if not chosen_asset:
-                for asset in rel.get("assets", []):
-                    name = asset.get("name", "").lower()
-                    if name.endswith(".exe"):
-                        chosen_asset = asset
-                        break
 
             download_url = chosen_asset.get("browser_download_url", "") if chosen_asset else ""
             asset_name = chosen_asset.get("name", "") if chosen_asset else ""
@@ -1665,7 +1658,7 @@ def api_check_updates():
     except Exception as e:
         return {"status": "error", "current_version": APP_VERSION, "update_available": False, "message": str(e)}
 
-def _download_worker(download_url: str, target_file: str, target_ver: str):
+def _download_worker(download_url: str, target_installer: str, target_ver: str):
     try:
         headers = {"User-Agent": "TallyBridge-Desktop"}
         with requests.get(download_url, headers=headers, stream=True, timeout=60) as r:
@@ -1673,7 +1666,7 @@ def _download_worker(download_url: str, target_file: str, target_ver: str):
             total_size = int(r.headers.get("content-length", 0))
             downloaded = 0
             
-            with open(target_file, "wb") as f:
+            with open(target_installer, "wb") as f:
                 for chunk in r.iter_content(chunk_size=65536):
                     if chunk:
                         f.write(chunk)
@@ -1686,21 +1679,19 @@ def _download_worker(download_url: str, target_file: str, target_ver: str):
                             else:
                                 update_state["progress"] = 50
 
-        # Validate downloaded package
-        if target_file.lower().endswith(".zip"):
-            if not zipfile.is_zipfile(target_file):
-                raise Exception("Downloaded file is not a valid ZIP package.")
-        elif target_file.lower().endswith(".exe"):
-            if not os.path.exists(target_file) or os.path.getsize(target_file) < 500000:
-                raise Exception("Downloaded installer executable is incomplete or corrupt.")
-            with open(target_file, "rb") as f:
-                if f.read(2) != b"MZ":
-                    raise Exception("Downloaded installer is not a valid Windows executable.")
+        # Validate downloaded installer executable
+        if not os.path.exists(target_installer) or os.path.getsize(target_installer) < 500000:
+            raise Exception("Downloaded installer is incomplete or corrupt.")
+            
+        with open(target_installer, "rb") as f:
+            if f.read(2) != b"MZ":
+                raise Exception("Downloaded file is not a valid Windows installer executable.")
 
         with update_lock:
             update_state["status"] = "completed"
             update_state["progress"] = 100
-            update_state["zip_path"] = target_file
+            update_state["installer_path"] = target_installer
+            update_state["zip_path"] = target_installer
             update_state["version"] = target_ver
     except Exception as e:
         with update_lock:
@@ -1720,18 +1711,10 @@ def api_download_update(data: dict):
         
         update_dir = os.path.join(tempfile.gettempdir(), "TallyBridge_Update")
         os.makedirs(update_dir, exist_ok=True)
-        
-        # Determine actual file extension from download URL
-        parsed_url = urllib.parse.urlparse(url)
-        raw_fname = os.path.basename(parsed_url.path)
-        ext = os.path.splitext(raw_fname)[1].lower() if raw_fname else ""
-        if ext not in [".zip", ".exe"]:
-            ext = ".zip" if "zip" in url.lower() else ".exe"
-
-        target_file = os.path.join(update_dir, f"update_package{ext}")
-        if os.path.exists(target_file):
+        target_installer = os.path.join(update_dir, "TallyBridge-Setup.exe")
+        if os.path.exists(target_installer):
             try:
-                os.remove(target_file)
+                os.remove(target_installer)
             except Exception:
                 pass
 
@@ -1740,10 +1723,11 @@ def api_download_update(data: dict):
         update_state["downloaded_bytes"] = 0
         update_state["total_bytes"] = 0
         update_state["error_message"] = ""
+        update_state["installer_path"] = ""
         update_state["zip_path"] = ""
         update_state["version"] = version
 
-    t = threading.Thread(target=_download_worker, args=(url, target_file, version), daemon=True)
+    t = threading.Thread(target=_download_worker, args=(url, target_installer, version), daemon=True)
     t.start()
     return {"status": "ok", "message": "Download started in background."}
 
@@ -1755,9 +1739,9 @@ def api_update_progress():
 @app.post("/api/updates/apply")
 def api_apply_update():
     with update_lock:
-        if update_state["status"] != "completed" or not os.path.exists(update_state["zip_path"]):
-            return {"status": "error", "message": "No completed update package ready to install."}
-        zip_path = update_state["zip_path"]
+        installer_path = update_state.get("installer_path") or update_state.get("zip_path")
+        if update_state["status"] != "completed" or not installer_path or not os.path.exists(installer_path):
+            return {"status": "error", "message": "No completed installer package ready to execute."}
 
     is_frozen = getattr(sys, 'frozen', False)
     target_dir = os.path.dirname(sys.executable) if is_frozen else APP_DIR
@@ -1776,56 +1760,40 @@ echo   TALLY BRIDGE AUTO-UPDATER
 echo ====================================================================
 echo.
 echo [*] Target Directory: "{target_dir}"
-echo [*] Update Package:   "{zip_path}"
+echo [*] Setup Installer:  "{installer_path}"
 echo [*] Executable:       "{exe_name}"
 echo [*] Process PID:      {pid}
 echo.
-echo [1/5] Waiting for Tally Bridge to terminate...
+echo [1/4] Waiting for running Tally Bridge to terminate...
 timeout /t 2 /nobreak >nul
 taskkill /F /PID {pid} >nul 2>&1
 timeout /t 1 /nobreak >nul
 
-echo [2/5] Preserving user configuration (config.json)...
+echo [2/4] Preserving user configuration (config.json)...
 if exist "{target_dir}\\config.json" (
     copy /y "{target_dir}\\config.json" "{update_dir}\\config_backup.json" >nul
-    echo [✓] Configuration backed up.
+    echo [OK] Configuration backed up.
 )
 
-echo [3/5] Applying updated application files...
-if /i "{os.path.splitext(zip_path)[1]}"==".exe" (
-    echo [*] Running Windows setup installer silently...
-    start /wait "" "{zip_path}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="{target_dir}"
-) else (
-    set STAGE_DIR={update_dir}\\staging
-    if exist "%STAGE_DIR%" rd /s /q "%STAGE_DIR%"
-    mkdir "%STAGE_DIR%"
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath '{zip_path}' -DestinationPath '%STAGE_DIR%' -Force"
-    if exist "%STAGE_DIR%\\{exe_name}" (
-        xcopy /s /e /y /q "%STAGE_DIR%\\*" "{target_dir}\\" >nul
-    ) else if exist "%STAGE_DIR%\\TallyBridge\\{exe_name}" (
-        xcopy /s /e /y /q "%STAGE_DIR%\\TallyBridge\\*" "{target_dir}\\" >nul
-    ) else (
-        xcopy /s /e /y /q "%STAGE_DIR%\\*" "{target_dir}\\" >nul
-    )
-    rd /s /q "%STAGE_DIR%" >nul 2>&1
-)
+echo [3/4] Running Windows setup installer silently...
+start /wait "" "{installer_path}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="{target_dir}"
 
-echo [4/5] Restoring user configuration (config.json)...
+echo [4/4] Restoring user configuration (config.json)...
 if exist "{update_dir}\\config_backup.json" (
     copy /y "{update_dir}\\config_backup.json" "{target_dir}\\config.json" >nul
-    echo [✓] Configuration restored.
+    echo [OK] Configuration restored.
 )
 
-echo [5/5] Launching updated Tally Bridge...
+echo.
+echo [*] Launching updated Tally Bridge...
 timeout /t 1 /nobreak >nul
 cd /d "{target_dir}"
 start "" "{target_dir}\\{exe_name}"
 
 echo.
-echo [✓] Update applied successfully! Cleaning temporary files...
+echo [OK] Update applied successfully! Cleaning temporary installer...
 timeout /t 2 /nobreak >nul
-rd /s /q "%STAGE_DIR%" >nul 2>&1
-del "{zip_path}" >nul 2>&1
+del "{installer_path}" >nul 2>&1
 exit
 """
     try:
