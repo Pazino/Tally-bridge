@@ -29,7 +29,7 @@ from tally_rbm_module import (
 )
 
 
-APP_VERSION = "1.0.2"
+APP_VERSION = "1.0.3"
 GITHUB_REPO = "Pazino/Tally-Bridge" # Configured default repository for distribution
 
 if getattr(sys, 'frozen', False):
