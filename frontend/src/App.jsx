@@ -103,7 +103,13 @@ export default function App() {
         )}
         <div className="flex-1 overflow-y-auto">
         {activeNav === "home" && (
-          <HomePage theme={theme} pingData={pingData} onNavigate={setActiveNav} />
+          <HomePage 
+            theme={theme} 
+            pingData={pingData} 
+            onNavigate={setActiveNav} 
+            unmappedCount={unmappedCount}
+            updateInfo={updateInfo}
+          />
         )}
         {activeNav === "cost_centre" && (
           <CostCentreModule theme={theme} />

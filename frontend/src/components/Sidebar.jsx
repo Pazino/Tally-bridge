@@ -171,7 +171,12 @@ export default function Sidebar({
             </div>
             {!collapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="tracking-tight text-xs font-bold">Tally vs RBM Reco</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="tracking-tight text-xs font-bold">Tally vs RBM Reco</span>
+                  <span className={`text-[8px] px-1 py-0.2 rounded font-extrabold uppercase ${activeNav === "tally_vs_rbm" ? "bg-white/20 text-white" : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20"}`}>
+                    WIP
+                  </span>
+                </div>
                 <span className={`text-[10px] font-medium ${activeNav === "tally_vs_rbm" ? "text-indigo-100" : "text-slate-500 dark:text-slate-400"}`}>
                   PostgreSQL COS Variance
                 </span>
